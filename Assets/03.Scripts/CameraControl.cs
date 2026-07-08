@@ -7,14 +7,15 @@ public class CameraControl : MonoBehaviour
 
     void Start()
     {
-        // hide and lock mouse cursor
-        Cursor.visible = false;
+        // Lock the cursor to the center of the screen and make it invisible
         Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     void Update()
     {
         MoveCamera();
+        CameraRotation();
     }
 
     void MoveCamera()
@@ -50,11 +51,22 @@ public class CameraControl : MonoBehaviour
 
     void CameraRotation()
     {
-        // rotating from mouse movement
-        float mouseX = Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
-        float mouseY = Input.GetAxis("Mouse Y") * rotationSpeed * Time.deltaTime;
-
-        transform.Rotate(Vector3.up, mouseX);
-        transform.Rotate(Vector3.left, mouseY);
+        // turing camera with arrow keys
+        if (Input.GetKey(KeyCode.LeftArrow))
+        {
+            transform.rotation = Quaternion.Euler(transform.rotation.eulerAngles + new Vector3(0, -rotationSpeed * Time.deltaTime, 0));
+        }
+        if (Input.GetKey(KeyCode.RightArrow))
+        {
+            transform.rotation = Quaternion.Euler(transform.rotation.eulerAngles + new Vector3(0, rotationSpeed * Time.deltaTime, 0));
+        }
+        if (Input.GetKey(KeyCode.UpArrow))
+        {
+            transform.rotation = Quaternion.Euler(transform.rotation.eulerAngles + new Vector3(-rotationSpeed * Time.deltaTime, 0, 0));
+        }
+        if (Input.GetKey(KeyCode.DownArrow))
+        {
+            transform.rotation = Quaternion.Euler(transform.rotation.eulerAngles + new Vector3(rotationSpeed * Time.deltaTime, 0, 0));
+        }
     }
 }

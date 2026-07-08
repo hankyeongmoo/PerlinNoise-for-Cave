@@ -14,12 +14,12 @@ public class BuildingMap : MonoBehaviour
     void Start()
     {
         // 돌 소환
-        for (int h = 0; h < 32; h++)
-        { for (int y = 0; y < 16; y++)
-            { for (int x = 0; x < 16; x++)
+        for (int y = 0; y < 32; y++)        // 높이
+        { for (int z = 0; z < 16; z++)      // 세로
+            { for (int x = 0; x < 16; x++)  // 가로
                 {
-                    stones[x, y, h] = Instantiate(stonePrefab, new Vector3(x, y, h), Quaternion.identity);
-                    stones[x, y, h].transform.parent = transform;
+                    stones[x, y, z] = Instantiate(stonePrefab, new Vector3(x, y, z), Quaternion.identity);
+                    stones[x, y, z].transform.parent = transform;
                 }
             }
         }
@@ -94,17 +94,17 @@ public class BuildingMap : MonoBehaviour
 
     void StoneStateChanger()
     {
-        for (int h = 0; h < 32; h++)
+        for (int z = 0; z < 32; z++)
         { for (int y = 0; y < 16; y++)
             { for (int x = 0; x < 16; x++)
                 {
-                    if (density[x, y, h] > densityThreshold)
+                    if (density[x, y, z] > densityThreshold)
                     {
-                        stones[x, y, h].SetActive(true);
+                        stones[x, y, z].SetActive(true);
                     }
                     else
                     {
-                        stones[x, y, h].SetActive(false);
+                        stones[x, y, z].SetActive(false);
                     }
                 }
             }
