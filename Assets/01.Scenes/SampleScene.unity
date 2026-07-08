@@ -443,7 +443,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuildingMap
   stonePrefab: {fileID: 992711502324393887, guid: 6b77667848a7aba4fa74b4497ae8a777, type: 3}
-  densityThreshold: 0.5
+  densityThreshold: 0.45
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
