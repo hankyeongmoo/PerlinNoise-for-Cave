@@ -5,13 +5,6 @@ public class CameraControl : MonoBehaviour
     public float moveSpeed = 5f;
     public float rotationSpeed = 100f;
 
-    void Start()
-    {
-        // Lock the cursor to the center of the screen and make it invisible
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-    }
-
     void Update()
     {
         MoveCamera();

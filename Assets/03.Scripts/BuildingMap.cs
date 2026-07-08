@@ -4,19 +4,25 @@ public class BuildingMap : MonoBehaviour
 {
     [Header("Prefabs Settings")]
     public GameObject stonePrefab;
-    public GameObject[,,] stones = new GameObject[16, 16, 32];
+    private GameObject[,,] stones = new GameObject[16, 32, 16]; // 유니티 관례상 [X, Y(높이), Z]로 매칭
 
     [Header("Map Settings")]
-    public float[,,] density = new float[16, 16, 16]; // 밀도 (아래 16칸만 사용)
-    public Vector2[,,] dirVector = new Vector2[3, 3, 9]; // 방향 벡터
+    // 아래 16칸만 밀도를 사용하므로 Y축은 16 크기로 선언
+    public float[,,] density = new float[16, 16, 16]; 
+    
+    // 16칸 공간을 4칸 단위 격자로 나누면 꼭짓점은 0, 4, 8, 12, 16으로 총 5개가 필요함 (3D이므로 Vector3)
+    public Vector3[,,] dirVectors = new Vector3[5, 5, 5]; 
     public float densityThreshold = 0.5f; // 밀도 임계값
+    public float[,] heightMap = new float[16, 16]; // 지상 높이 맵 (2D)
 
     void Start()
     {
-        // 돌 소환
-        for (int y = 0; y < 32; y++)        // 높이
-        { for (int z = 0; z < 16; z++)      // 세로
-            { for (int x = 0; x < 16; x++)  // 가로
+        // 돌 미리 소환 (X:16, Y:32, Z:16)
+        for (int x = 0; x < 16; x++)
+        {
+            for (int y = 0; y < 32; y++)
+            {
+                for (int z = 0; z < 16; z++)
                 {
                     stones[x, y, z] = Instantiate(stonePrefab, new Vector3(x, y, z), Quaternion.identity);
                     stones[x, y, z].transform.parent = transform;
@@ -27,26 +33,33 @@ public class BuildingMap : MonoBehaviour
 
     void Update()
     {
-        // 밀도 설정
+        // 1번 누르면 방향 벡터 세팅 및 밀도 계산
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             SetDirVector();
             SetDensity();
+            Debug.Log("밀도 계산 완료 (1번)");
         }
-        // 돌 상태 변경
+        
+        // 2번 누르면 돌 상태 변경
         if (Input.GetKeyDown(KeyCode.Alpha2))
         {
             StoneStateChanger();
+            GenerateGround();
+            Debug.Log("맵에 노이즈 적용 완료 (2번)");
         }
     }
 
     void SetDirVector()
     {
-        for (int h = 0; h < 3; h++)
-        { for (int y = 0; y < 3; y++)
-            { for (int x = 0; x < 3; x++)
+        // 5x5x5 격자 꼭짓점에 무작위 3D 방향 벡터 할당
+        for (int x = 0; x < 5; x++)
+        {
+            for (int y = 0; y < 5; y++)
+            {
+                for (int z = 0; z < 5; z++)
                 {
-                    dirVector[x, y, h] = new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)).normalized;
+                    dirVectors[x, y, z] = Random.onUnitSphere; // 3D 정규화된 구면 벡터
                 }
             }
         }
@@ -54,58 +67,163 @@ public class BuildingMap : MonoBehaviour
 
     void SetDensity()
     {
-        for (int h = 0; h < 16; h++)
-        { 
+        for (int x = 0; x < 16; x++)
+        {
             for (int y = 0; y < 16; y++)
-            { 
-                for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
                 {
-                    density[x, y, h] = GetDot(x, y, h);
+                    density[x, y, z] = GetNoise3D(x, y, z);
                 }
             }
         }
     }
 
-    float GetDot(int x, int y, int h)
+    // 부드러운 보간을 위한 Smoothstep 함수 (펄린 노이즈의 핵심)
+    float Fade(float t)
     {
-        // 8개의 점에서의 밀도 "총합"
-        float sum = 0f;
+        return t * t * t * (t * (t * 6 - 15) + 10);
+    }
 
-        for (int h__ = 0; h__ <= 1; h__++)
-        { for (int y__ = 0; y__ <= 1; y__++)
-            { for (int x__ = 0; x__ <= 1; x__++)
-                {
-                    // 사용되는 방향 벡터
-                    int x_ = x/4+x__, y_ = y/4+y__, h_ = h/4+h__;
-                    Vector2 vec1 = dirVector[x_, y_, h_];
+    float GetNoise3D(int x, int y, int z)
+    {
+        // 격자 크기인 4로 나누어 현재 속한 격자 인덱스 구하기
+        int x0 = x / 4; int x1 = x0 + 1;
+        int y0 = y / 4; int y1 = y0 + 1;
+        int z0 = z / 4; int z1 = z0 + 1;
 
-                    // 한 지점과 청크의 끝 사이의 벡터
-                    Vector2 vec2 = new Vector2(x-(x_*4.5f-0.5f), y-(y_*4.5f-0.5f));
+        // 격자 내부에서의 상대적 위치 (0.0 ~ 1.0)
+        float tx = (x % 4) / 4f;
+        float ty = (y % 4) / 4f;
+        float tz = (z % 4) / 4f;
 
-                    // 밀도 = 두 벡터의 내적
-                    sum += Mathf.Clamp01(Vector2.Dot(vec1, vec2) + 0.5f);
-                }
-            }
-        }
+        // 8개 꼭짓점에서의 내적값 계산
+        float d000 = Vector3.Dot(dirVectors[x0, y0, z0], new Vector3(tx, ty, tz));
+        float d100 = Vector3.Dot(dirVectors[x1, y0, z0], new Vector3(tx - 1, ty, tz));
+        float d010 = Vector3.Dot(dirVectors[x0, y1, z0], new Vector3(tx, ty - 1, tz));
+        float d110 = Vector3.Dot(dirVectors[x1, y1, z0], new Vector3(tx - 1, ty - 1, tz));
+        float d001 = Vector3.Dot(dirVectors[x0, y0, z1], new Vector3(tx, ty, tz - 1));
+        float d101 = Vector3.Dot(dirVectors[x1, y0, z1], new Vector3(tx - 1, ty, tz - 1));
+        float d011 = Vector3.Dot(dirVectors[x0, y1, z1], new Vector3(tx, ty - 1, tz - 1));
+        float d111 = Vector3.Dot(dirVectors[x1, y1, z1], new Vector3(tx - 1, ty - 1, tz - 1));
 
-        // 8개의 점에서의 "평균" 밀도 반환
-        return Mathf.Clamp01(sum / 8f);
+        // 보간을 위한 페이드 값 계산
+        float u = Fade(tx);
+        float v = Fade(ty);
+        float w = Fade(tz);
+
+        // 8개 점을 축 방향으로 차례대로 선언적 보간 (Lerp)
+        float x00 = Mathf.Lerp(d000, d100, u);
+        float x10 = Mathf.Lerp(d010, d110, u);
+        float x01 = Mathf.Lerp(d001, d101, u);
+        float x11 = Mathf.Lerp(d011, d111, u);
+
+        float r0 = Mathf.Lerp(x00, x10, v);
+        float r1 = Mathf.Lerp(x01, x11, v);
+
+        float value = Mathf.Lerp(r0, r1, w);
+
+        // 내적 결과인 -1~1 사이의 값을 0~1 범위로 매핑하여 반환
+        return (value + 1f) / 2f;
     }
 
     void StoneStateChanger()
     {
-        for (int z = 0; z < 32; z++)
-        { for (int y = 0; y < 16; y++)
-            { for (int x = 0; x < 16; x++)
+        for (int x = 0; x < 16; x++)
+        {
+            for (int y = 0; y < 32; y++) // 전체 높이 32 돌기
+            {
+                for (int z = 0; z < 16; z++)
                 {
-                    if (density[x, y, z] > densityThreshold)
+                    // 아래 16칸은 계산된 밀도 데이터 사용
+                    if (y < 16)
                     {
-                        stones[x, y, z].SetActive(true);
+                        if (density[x, y, z] > densityThreshold)
+                            stones[x, y, z].SetActive(true);
+                        else
+                            stones[x, y, z].SetActive(false); // 밀도가 낮으면 파내서 동굴 생성
+                    }
+                    else if (y >= 24)
+                    {
+                        // 위쪽 16칸(16~31)은 밀도 데이터가 없으므로 무조건 비활성화 (지상 공간)
+                        // GenerateGround();
                     }
                     else
                     {
-                        stones[x, y, z].SetActive(false);
+                        // 중간 8칸(16~23)은 지상 공간과 연결되도록 무조건 활성화
+                        stones[x, y, z].SetActive(true);
                     }
+                }
+            }
+        }
+    }
+
+    float GetNoise2D(int x, int z)
+    {
+        // 격자 크기인 4로 나누어 현재 속한 격자 인덱스 구하기
+        int x0 = x / 4; int x1 = x0 + 1;
+        int z0 = z / 4; int z1 = z0 + 1;
+
+        // 격자 내부에서의 상대적 위치 (0.0 ~ 1.0)
+        float tx = (x % 4) / 4f;
+        float tz = (z % 4) / 4f;
+
+        // 8개 꼭짓점에서의 내적값 계산
+        float d000 = Vector3.Dot(dirVectors[x0, 5, z0], new Vector3(tx, 0.25f, tz));
+        float d100 = Vector3.Dot(dirVectors[x1, 5, z0], new Vector3(tx - 1, 0.25f, tz));
+        float d010 = Vector3.Dot(dirVectors[x0, 5, z1], new Vector3(tx, 0.25f, tz - 1));
+        float d110 = Vector3.Dot(dirVectors[x1, 5, z1], new Vector3(tx - 1, 0.25f, tz - 1));
+        float d001 = Vector3.Dot(dirVectors[x0, 5, z1], new Vector3(tx, 0.25f, tz - 1));
+        float d101 = Vector3.Dot(dirVectors[x1, 5, z1], new Vector3(tx - 1, 0.25f, tz - 1));
+        float d011 = Vector3.Dot(dirVectors[x0, 5, z1], new Vector3(tx, 0.25f, tz - 1));
+        float d111 = Vector3.Dot(dirVectors[x1, 5, z1], new Vector3(tx - 1, 0.25f, tz - 1));
+
+        // 보간을 위한 페이드 값 계산
+        float u = Fade(tx);
+        float v = Fade(0.25f);
+        float w = Fade(tz);
+
+        // 8개 점을 축 방향으로 차례대로 선언적 보간 (Lerp)
+        float x00 = Mathf.Lerp(d000, d100, u);
+        float x10 = Mathf.Lerp(d010, d110, u);
+        float x01 = Mathf.Lerp(d001, d101, u);
+        float x11 = Mathf.Lerp(d011, d111, u);
+
+        float r0 = Mathf.Lerp(x00, x10, v);
+        float r1 = Mathf.Lerp(x01, x11, v);
+
+        float value = Mathf.Lerp(r0, r1, w);
+
+        // 내적 결과인 -1~1 사이의 값을 0~1 범위로 매핑하여 반환
+        return (value + 1f) / 2f;
+    }
+
+    void GenerateHeightMap()
+    {
+        for (int x = 0; x < 16; x++)
+        {
+            for (int z = 0; z < 16; z++)
+            {
+                // 낮은 주파수로 부드러운 지형 생성
+                heightMap[x, z] = GetNoise2D(x, z) * 4f;
+            }
+        }
+    }
+
+    // 지상(위 8칸) 펄린 노이즈 2D로 생성
+    void GenerateGround()
+    {
+        for (int x = 0; x < 16; x++)
+        {
+            for (int z = 0; z < 16; z++)
+            {
+                for (int y = 24; y < 32; y++) // 위쪽 8칸(24~31)만 지상 공간
+                {
+                    float groundDensity = heightMap[x, z];
+                    if (groundDensity > densityThreshold)
+                        stones[x, y, z].SetActive(true);
+                    else
+                        stones[x, y, z].SetActive(false);
                 }
             }
         }
