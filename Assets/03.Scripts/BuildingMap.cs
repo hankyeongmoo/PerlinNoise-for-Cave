@@ -143,14 +143,14 @@ public class BuildingMap : MonoBehaviour
                         else
                             stones[x, y, z].SetActive(false); // 밀도가 낮으면 파내서 동굴 생성
                     }
-                    else if (y >= 24)
+                    else if (y >= 28)
                     {
-                        // 위쪽 16칸(16~31)은 밀도 데이터가 없으므로 무조건 비활성화 (지상 공간)
+                        // 위쪽 4칸(28~31)은 밀도 데이터가 없으므로 무조건 비활성화 (지상 공간)
                         // GenerateGround();
                     }
                     else
                     {
-                        // 중간 8칸(16~23)은 지상 공간과 연결되도록 무조건 활성화
+                        // 중간 4칸(28~31)은 지상 공간과 연결되도록 무조건 활성화
                         stones[x, y, z].SetActive(true);
                     }
                 }
@@ -169,14 +169,14 @@ public class BuildingMap : MonoBehaviour
         float tz = (z % 4) / 4f;
 
         // 8개 꼭짓점에서의 내적값 계산
-        float d000 = Vector3.Dot(dirVectors[x0, 5, z0], new Vector3(tx, 0.25f, tz));
-        float d100 = Vector3.Dot(dirVectors[x1, 5, z0], new Vector3(tx - 1, 0.25f, tz));
-        float d010 = Vector3.Dot(dirVectors[x0, 5, z1], new Vector3(tx, 0.25f, tz - 1));
-        float d110 = Vector3.Dot(dirVectors[x1, 5, z1], new Vector3(tx - 1, 0.25f, tz - 1));
-        float d001 = Vector3.Dot(dirVectors[x0, 5, z1], new Vector3(tx, 0.25f, tz - 1));
-        float d101 = Vector3.Dot(dirVectors[x1, 5, z1], new Vector3(tx - 1, 0.25f, tz - 1));
-        float d011 = Vector3.Dot(dirVectors[x0, 5, z1], new Vector3(tx, 0.25f, tz - 1));
-        float d111 = Vector3.Dot(dirVectors[x1, 5, z1], new Vector3(tx - 1, 0.25f, tz - 1));
+        float d000 = Vector3.Dot(dirVectors[x0, 4, z0], new Vector3(tx, 0.5f, tz));
+        float d100 = Vector3.Dot(dirVectors[x1, 4, z0], new Vector3(tx - 1, 0.5f, tz));
+        float d010 = Vector3.Dot(dirVectors[x0, 4, z1], new Vector3(tx, -0.5f, tz));
+        float d110 = Vector3.Dot(dirVectors[x1, 4, z1], new Vector3(tx - 1, -0.5f, tz));
+        float d001 = Vector3.Dot(dirVectors[x0, 4, z1], new Vector3(tx, 0.5f, tz - 1));
+        float d101 = Vector3.Dot(dirVectors[x1, 4, z1], new Vector3(tx - 1, 0.5f, tz - 1));
+        float d011 = Vector3.Dot(dirVectors[x0, 4, z1], new Vector3(tx, -0.5f, tz - 1));
+        float d111 = Vector3.Dot(dirVectors[x1, 4, z1], new Vector3(tx - 1, -0.5f, tz - 1));
 
         // 보간을 위한 페이드 값 계산
         float u = Fade(tx);
@@ -210,17 +210,17 @@ public class BuildingMap : MonoBehaviour
         }
     }
 
-    // 지상(위 8칸) 펄린 노이즈 2D로 생성
+    // 지상(위 4칸) 펄린 노이즈 2D로 생성
     void GenerateGround()
     {
         for (int x = 0; x < 16; x++)
         {
             for (int z = 0; z < 16; z++)
             {
-                for (int y = 24; y < 32; y++) // 위쪽 8칸(24~31)만 지상 공간
+                for (int y = 28; y < 32; y++) // 위쪽 4칸(28~31)만 지상 공간
                 {
-                    float groundDensity = heightMap[x, z];
-                    if (groundDensity > densityThreshold)
+                    Debug.Log($"HeightMap[{x}, {z}] = {heightMap[x, z]}");
+                    if (y <= 28 + heightMap[x, z]) // 지상 높이 맵에 따라 돌 활성화
                         stones[x, y, z].SetActive(true);
                     else
                         stones[x, y, z].SetActive(false);
