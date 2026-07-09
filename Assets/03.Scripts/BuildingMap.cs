@@ -38,6 +38,7 @@ public class BuildingMap : MonoBehaviour
         {
             SetDirVector();
             SetDensity();
+            GenerateHeightMap();
             Debug.Log("밀도 계산 완료 (1번)");
         }
         
@@ -160,41 +161,32 @@ public class BuildingMap : MonoBehaviour
 
     float GetNoise2D(int x, int z)
     {
-        // 격자 크기인 4로 나누어 현재 속한 격자 인덱스 구하기
+        // 1. 격자 크기인 4로 나누어 현재 속한 격자 인덱스 구하기
         int x0 = x / 4; int x1 = x0 + 1;
         int z0 = z / 4; int z1 = z0 + 1;
 
-        // 격자 내부에서의 상대적 위치 (0.0 ~ 1.0)
+        // 2. 격자 내부에서의 상대적 위치 (0.0 ~ 1.0)
         float tx = (x % 4) / 4f;
         float tz = (z % 4) / 4f;
 
-        // 8개 꼭짓점에서의 내적값 계산
-        float d000 = Vector3.Dot(dirVectors[x0, 4, z0], new Vector3(tx, 0.5f, tz));
-        float d100 = Vector3.Dot(dirVectors[x1, 4, z0], new Vector3(tx - 1, 0.5f, tz));
-        float d010 = Vector3.Dot(dirVectors[x0, 4, z1], new Vector3(tx, -0.5f, tz));
-        float d110 = Vector3.Dot(dirVectors[x1, 4, z1], new Vector3(tx - 1, -0.5f, tz));
-        float d001 = Vector3.Dot(dirVectors[x0, 4, z1], new Vector3(tx, 0.5f, tz - 1));
-        float d101 = Vector3.Dot(dirVectors[x1, 4, z1], new Vector3(tx - 1, 0.5f, tz - 1));
-        float d011 = Vector3.Dot(dirVectors[x0, 4, z1], new Vector3(tx, -0.5f, tz - 1));
-        float d111 = Vector3.Dot(dirVectors[x1, 4, z1], new Vector3(tx - 1, -0.5f, tz - 1));
+        // 3. 2D 격자의 4개 꼭짓점에서의 내적값 계산 (dirVectors의 Y인덱스는 0으로 고정)
+        // Vector3의 X, Z축만 사용하고 Y는 0으로 둡니다.
+        float d00 = Vector3.Dot(dirVectors[x0, 0, z0], new Vector3(tx, 0f, tz));
+        float d10 = Vector3.Dot(dirVectors[x1, 0, z0], new Vector3(tx - 1f, 0f, tz));
+        float d01 = Vector3.Dot(dirVectors[x0, 0, z1], new Vector3(tx, 0f, tz - 1f));
+        float d11 = Vector3.Dot(dirVectors[x1, 0, z1], new Vector3(tx - 1f, 0f, tz - 1f));
 
-        // 보간을 위한 페이드 값 계산
+        // 4. 보간을 위한 페이드 값 계산
         float u = Fade(tx);
-        float v = Fade(0.25f);
         float w = Fade(tz);
 
-        // 8개 점을 축 방향으로 차례대로 선언적 보간 (Lerp)
-        float x00 = Mathf.Lerp(d000, d100, u);
-        float x10 = Mathf.Lerp(d010, d110, u);
-        float x01 = Mathf.Lerp(d001, d101, u);
-        float x11 = Mathf.Lerp(d011, d111, u);
+        // 5. 4개의 점을 선형 보간 (Lerp)
+        float x0_lerp = Mathf.Lerp(d00, d10, u);
+        float x1_lerp = Mathf.Lerp(d01, d11, u);
 
-        float r0 = Mathf.Lerp(x00, x10, v);
-        float r1 = Mathf.Lerp(x01, x11, v);
+        float value = Mathf.Lerp(x0_lerp, x1_lerp, w);
 
-        float value = Mathf.Lerp(r0, r1, w);
-
-        // 내적 결과인 -1~1 사이의 값을 0~1 범위로 매핑하여 반환
+        // 내적 결과(-1 ~ 1)를 0 ~ 1 범위로 매핑하여 반환
         return (value + 1f) / 2f;
     }
 
@@ -204,8 +196,13 @@ public class BuildingMap : MonoBehaviour
         {
             for (int z = 0; z < 16; z++)
             {
-                // 낮은 주파수로 부드러운 지형 생성
-                heightMap[x, z] = GetNoise2D(x, z) * 4f;
+                float noise = GetNoise2D(x, z);
+                
+                // 단순 * 4f 보다 대비(Contrast)를 주면 지형의 굴곡이 더 뚜렷해집니다.
+                noise = (noise - 0.5f) * 1.5f + 0.5f; 
+                noise = Mathf.Clamp01(noise);
+
+                heightMap[x, z] = noise * 4f;
             }
         }
     }
