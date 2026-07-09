@@ -216,7 +216,6 @@ public class BuildingMap : MonoBehaviour
             {
                 for (int y = 28; y < 32; y++) // 위쪽 4칸(28~31)만 지상 공간
                 {
-                    Debug.Log($"HeightMap[{x}, {z}] = {heightMap[x, z]}");
                     if (y <= 28 + heightMap[x, z]) // 지상 높이 맵에 따라 돌 활성화
                         stones[x, y, z].SetActive(true);
                     else
