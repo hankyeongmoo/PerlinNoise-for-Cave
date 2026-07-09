@@ -1,10 +1,14 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class BuildingMap : MonoBehaviour
 {
     [Header("Prefabs Settings")]
     public GameObject stonePrefab;
     private GameObject[,,] stones = new GameObject[16, 32, 16]; // 유니티 관례상 [X, Y(높이), Z]로 매칭
+
+    [Header("Slider Settings")]
+    public Slider densityThresholdSlider;
 
     [Header("Map Settings")]
     // 아래 16칸만 밀도를 사용하므로 Y축은 16 크기로 선언
@@ -34,7 +38,7 @@ public class BuildingMap : MonoBehaviour
     void Update()
     {
         // 1번 누르면 방향 벡터 세팅 및 밀도 계산
-        if (Input.GetKeyDown(KeyCode.Alpha1))
+        if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
         {
             SetDirVector();
             SetDensity();
@@ -43,11 +47,17 @@ public class BuildingMap : MonoBehaviour
         }
         
         // 2번 누르면 돌 상태 변경
-        if (Input.GetKeyDown(KeyCode.Alpha2))
+        if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
         {
             StoneStateChanger();
             GenerateGround();
             Debug.Log("맵에 노이즈 적용 완료 (2번)");
+        }
+
+        // 밀도 임계값 슬라이더 값 변경 시 돌 상태 변경
+        if (densityThresholdSlider != null && densityThreshold != densityThresholdSlider.value)
+        {
+            densityThreshold = densityThresholdSlider.value;
         }
     }
 
